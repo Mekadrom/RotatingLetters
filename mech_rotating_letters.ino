@@ -14,9 +14,10 @@
 
 #define ROTATE_ALL          0x00
 #define ROTATE_ONE_BY_ONE   0x01
+#define POINT               0x02
 
-#define LEFT_TO_RIGHT       0x02
-#define RIGHT_TO_LEFT       0x03
+#define LEFT_TO_RIGHT       0x03
+#define RIGHT_TO_LEFT       0x04
  
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 
@@ -32,14 +33,14 @@ void setup() {
   pwm.begin();
   pwm.setPWMFreq(FREQUENCY);
 
-//  rotateAll(0, 0xffffff); // zeroing
+  rotateAll(0, 0xffffff); // zeroing
 }
 
 void loop() {
-//  if(!dormant) {
+  if(!dormant) {
     doSubroutine(ROTATE_ONE_BY_ONE);
-//  }
-//  dormantCheck();
+  }
+  dormantCheck();
 }
 
 void doSubroutine(int subroutine) {
@@ -50,11 +51,18 @@ void doSubroutine(int subroutine) {
     } case ROTATE_ONE_BY_ONE: {
       rotateOneByOneRoutine();
       break;
+    } case POINT: {
+      point(0.0, 1.0);
+      break;
     } default: {
       rotateAllRoutine();
       break;
     }
   }
+}
+
+void point(double centerOffset, double distance) { // distance in meters
+  
 }
 
 void rotateAllRoutine() {
@@ -150,4 +158,3 @@ void wait(long microseconds) {
   delay(microseconds);
   dormantTimer += microseconds;
 }
-
