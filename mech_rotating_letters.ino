@@ -41,7 +41,7 @@ Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 
 long pointStartTime;
 
-uint8_t offsets[SERVO_COUNT] = { 22, 8, 18, 14, 15, 10, 8, 23, 21, 21, 20 }; // these are subject to change
+int offsets[SERVO_COUNT] = { 22, 8, 18, 14, 15, 10, 8, 23, 21, 21, 20 }; // these are subject to change
 
 /**
  * start everything and zero servos
@@ -165,8 +165,7 @@ void rotateOneByOneRoutine() {
  * utility method that calls rotateAll() with an array of size 1
  */
 void rotateAll(int angle, long color) {
-  long colorArr[1] = { color };
-  rotateAll(angle, colorArr);
+  rotateAll(angle, &color);
 }
 
 /**
@@ -181,8 +180,7 @@ void rotateAll(int angle, long* colors) {
  * utility method that allows the direct usage of a long instead of a long*
  */
 void rotateAllWithDelay(int angle, int delayTime, int dir, long color) {
-  long colorArr[1] = { color };
-  rotateAllWithDelay(angle, delayTime, dir, colorArr);
+  rotateAllWithDelay(angle, delayTime, dir, &color);
 }
 
 /**
