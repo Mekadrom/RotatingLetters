@@ -15,13 +15,13 @@
 #define AERONAUTICS         0  // need to make adjustments to setup so that this can be 45
 #define ENGINEERING         90 // || and set this to 135, to allow for a wider range of pointing 
 
-// various state constants
+// various state constants; values don't matter here as long as they're different
 #define ROTATE_ALL          0x00
 #define ROTATE_ONE_BY_ONE   0x01
 #define POINT               0x02
 
-#define LEFT_TO_RIGHT       0x03
-#define RIGHT_TO_LEFT       0x04
+#define LEFT_TO_RIGHT       0x10
+#define RIGHT_TO_LEFT       0x11
 
 #define DEFAULT_COLOR       0xffffff // white
 
