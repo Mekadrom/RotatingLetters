@@ -1,32 +1,50 @@
 #include <Wire.h>
+#include <math.h>
 #include <Adafruit_PWMServoDriver.h>
 
+// definitions purely for use with adafruit servo driver
 #define MIN_PULSE_WIDTH     650
 #define MAX_PULSE_WIDTH     2350
 #define DEFAULT_PULSE_WIDTH 1500
 #define FREQUENCY           50
+
+// project-specific definitions for easy changing throughout testing
 #define SERVO_COUNT         11
 #define DELAY               7000
 #define ONE_BY_ONE_DELAY    100
-#define AERONAUTICS         0
-#define ENGINEERING         90
-#define DEFAULT_COLOR       0xffffff
+#define AERONAUTICS         0  // need to make adjustments to setup so that this can be 45
+#define ENGINEERING         90 // || and set this to 135, to allow for a wider range of pointing 
 
+// various state constants
 #define ROTATE_ALL          0x00
 #define ROTATE_ONE_BY_ONE   0x01
 #define POINT               0x02
 
 #define LEFT_TO_RIGHT       0x03
 #define RIGHT_TO_LEFT       0x04
- 
+
+#define DEFAULT_COLOR       0xffffff // white
+#define KENT_STATE_BLUE     0x002664 // blue
+#define KENT_STATE_ORANGE   0xeaab00 // orange
+
+// project-level constants for calculating pointing routine
+#define X                   2  // inches; distance between letters/servos
+#define L                   48 // inches; total length of physical aspect of project
+#define W                   3  // inches; distance between line of servos and cameras behind servos (subject to change)
+
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 
 boolean dormant = false;
 int dormantTimer = 0;
 int dormantLimit = 50000;
 
-uint8_t offsets[SERVO_COUNT] = { 22, 8, 18, 14, 15, 10, 8, 23, 21, 21, 20 };
+long pointStartTime;
 
+uint8_t offsets[SERVO_COUNT] = { 22, 8, 18, 14, 15, 10, 8, 23, 21, 21, 20 }; // these are subject to change
+
+/**
+ * start everything and zero servos
+ */
 void setup() {
   Serial.begin(9600);
  
@@ -36,13 +54,18 @@ void setup() {
   rotateAll(0, 0xffffff); // zeroing
 }
 
+/**
+ * routine-routining should be done here
+ */
 void loop() {
-  if(!dormant) {
-    doSubroutine(ROTATE_ONE_BY_ONE);
-  }
-  dormantCheck();
+  doSubroutine(POINT);
 }
 
+
+
+/** 
+ * delegate routining 
+ */
 void doSubroutine(int subroutine) {
   switch(subroutine) {
     case ROTATE_ALL: {
@@ -52,7 +75,9 @@ void doSubroutine(int subroutine) {
       rotateOneByOneRoutine();
       break;
     } case POINT: {
-      point(0.0, 1.0);
+      // set start time so the thing knows when to switch
+      pointStartTime = micros();
+      point();
       break;
     } default: {
       rotateAllRoutine();
@@ -61,38 +86,114 @@ void doSubroutine(int subroutine) {
   }
 }
 
-void point(double centerOffset, double distance) { // distance in meters
+void point() {
+  char chars[128];
+  uint8_t i = 0;
+  while(Serial.available() > 0) {
+    chars[i++] = Serial.read();
+  }
+  if(chars[0] != '\0' && chars[0] != NULL) {
+    char distanceC[10];
+    char angleC[10];
+
+    // read in string instead of floats because arduino has a hard time reading in float for some reason
+    sscanf(chars, "%s,%s", distanceC, angleC);
+
+    // convert them to floats anyways
+    point(atof(distanceC), atof(angleC));
+  }
+}
+
+int staticOffset = AERONAUTICS; 
+
+/**
+ * routine for having the servos aim at a point in space
+ * distance in inches, angle in degrees, both with respect to the center
+ * servo (or the closest to the center between servos, it doesn't have to fall on
+ * a servo)
+ */
+void point(double distance, double angle) {
+  // todo: math for pointing each individual servo at a point in space in front of them
+  Serial.print("pointing at something: ");
+  Serial.print(distance);
+  Serial.print(" far and at an angle of: ");
+  Serial.print(angle);
+  Serial.print("\n");
+
+  // toggle word showing every ten seconds for cool whiplash effect (hopefully)
+  if((micros() - pointStartTime) % 10000 <= 200) {
+    if(staticOffset == AERONAUTICS) {
+      staticOffset = ENGINEERING;
+    } else {
+      staticOffset = AERONAUTICS;
+    }
+  }
   
+  uint8_t pointOffsets[SERVO_COUNT];
+  for(uint8_t i = 0; i < SERVO_COUNT; i++) {
+    double D = distance - W;
+    pointOffsets[i] = atan2(D, (L / 2) - (X*i) - (D * tan(angle))) - PI;
+    pointOffsets[i] *= (180.0 / PI); // convert to degrees
+  }
+
+  for(uint8_t i = 0; i < SERVO_COUNT; i++) {
+    setAngle(i, pointOffsets[i] + offsets[i] + staticOffset);
+  }
 }
 
+/**
+ * not really used anymore, as the delayed routine was deemed a better (cooler) demonstration
+ */
 void rotateAllRoutine() {
-  rotateAll(AERONAUTICS, 0x0000ff);
+  rotateAll(AERONAUTICS, KENT_STATE_BLUE);
   wait(DELAY);
-  rotateAll(ENGINEERING, 0xecab23);
+  rotateAll(ENGINEERING, KENT_STATE_ORANGE);
   wait(DELAY);
 }
 
+/**
+ * default procedure; rotates each servo with a delay of ONE_BY_ONE_DELAY between each,
+ * and changes the direction in between
+ * 
+ * the two colors specified are kent state blue and kent state orange, as defined at
+ * https://www.kent.edu/ucm/color-palettes-primary-palette
+ */
 void rotateOneByOneRoutine() {
-  rotateAllWithDelay(AERONAUTICS, ONE_BY_ONE_DELAY, LEFT_TO_RIGHT, 0x0000ff);
+  rotateAllWithDelay(AERONAUTICS, ONE_BY_ONE_DELAY, LEFT_TO_RIGHT, KENT_STATE_BLUE);
   wait(DELAY);
-  rotateAllWithDelay(ENGINEERING, ONE_BY_ONE_DELAY, RIGHT_TO_LEFT, 0xecab23);
+  rotateAllWithDelay(ENGINEERING, ONE_BY_ONE_DELAY, RIGHT_TO_LEFT, KENT_STATE_ORANGE);
   wait(DELAY);
 }
 
+/**
+ * utility method that calls rotateAll() with an array of size 1
+ */
 void rotateAll(int angle, long color) {
   long l[1] = { color };
   rotateAll(angle, l);
 }
 
+/**
+ * default usage of rotateAllWithDelay, allows one color for each servo
+ * and passes a delay of zero to get them all to move at roughly the same time
+ */
 void rotateAll(int angle, long* colors) {
   rotateAllWithDelay(angle, 0, LEFT_TO_RIGHT, colors);
 }
 
+/**
+ * utility method that allows the direct usage of a long instead of a long*
+ */
 void rotateAllWithDelay(int angle, int delayTime, int dir, long color) {
-  long l[1] = { color };
-  rotateAllWithDelay(angle, delayTime, dir, l);
+  long colorArr[1] = { color };
+  rotateAllWithDelay(angle, delayTime, dir, colorArr);
 }
 
+/**
+ * rotates all servos with a delay between each angle command,
+ * can take a pointer to either a single long for the color of each servo
+ * or an array of colors to set the color for each individual servo
+ */
 void rotateAllWithDelay(int angle, int delayTime, int dir, long* colors) {
   int numColors = sizeof(colors) / sizeof(long);
   if(dir == LEFT_TO_RIGHT) {
@@ -125,14 +226,29 @@ void outputServoAndLED(int pin, int angle, long color) {
   setLed(pin, color);
 }
 
+/**
+ * sets angle for a specific servo (currently 0-11)
+ * offsets are used for each servo as stored in offsets int array
+ */
 void setAngle(int pin, int angle) {
   pwm.setPWM(pin, 0, pulseWidth(angle + offsets[pin]));
 }
 
 void setLed(int ledNum, long color) {
-  // todo: code for setting color of led at ledNum pin
-//  long colorLong = *color;
-//  Color color = Color(colorLong);
+  // color should be in hexadecimal (0xffffff) format
+  // bitwise operators are used for separating out red, green, and blue color contents
+  
+  // red content is stored in the first byte (0xff), so mask for this (0xff0000) and shift it 16 bits to the right to be in the lowest bit position to get the true value
+  unsigned int red = (color & 0xff0000) >> 16;
+
+  // same thing for green, except the data is stored in the second byte and we only have to shift it 8 bits to the right
+  unsigned int green = (color & 0x00ff00) >> 8;
+
+  // again for blue, and we don't have to shift anything because the data is already in the right position
+  unsigned int blue = (color & 0x0000ff) >> 0;
+
+  // and now we have the red, green, and blue content of a hexadecimal color on a scale of 0-255, for use with LED strip
+  // todo: integrate led strip code here
 }
 
 int pulseWidth(int angle) {
@@ -142,18 +258,10 @@ int pulseWidth(int angle) {
   return analog_value;
 }
 
-void dormantCheck() {
-  if(personPresent()) { // if person detected, reset dormantTimer
-    dormantTimer = 0;
-  }
-  dormantTimer++;
-  dormant = dormantTimer >= dormantLimit; // change dormancy depending on input
-}
-
-boolean personPresent() {
-  return false; // todo: detect people
-}
-
+/**
+ * delay() wrapper method that subtracts the given amount from the dormant timer
+ * to help it keep up
+ */
 void wait(long microseconds) {
   delay(microseconds);
   dormantTimer += microseconds;
