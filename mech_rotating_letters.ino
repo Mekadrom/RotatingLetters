@@ -24,6 +24,11 @@
 #define RIGHT_TO_LEFT       0x04
 
 #define DEFAULT_COLOR       0xffffff // white
+
+/** 
+ * the two colors below are kent state blue and kent state orange, as defined at
+ * https://www.kent.edu/ucm/color-palettes-primary-palette
+ */
 #define KENT_STATE_BLUE     0x002664 // blue
 #define KENT_STATE_ORANGE   0xeaab00 // orange
 
@@ -33,10 +38,6 @@
 #define W                   3  // inches; distance between line of servos and cameras behind servos (subject to change)
 
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
-
-boolean dormant = false;
-int dormantTimer = 0;
-int dormantLimit = 50000;
 
 long pointStartTime;
 
@@ -60,8 +61,6 @@ void setup() {
 void loop() {
   doSubroutine(POINT);
 }
-
-
 
 /** 
  * delegate routining 
@@ -146,31 +145,28 @@ void point(double distance, double angle) {
  */
 void rotateAllRoutine() {
   rotateAll(AERONAUTICS, KENT_STATE_BLUE);
-  wait(DELAY);
+  delay(DELAY);
   rotateAll(ENGINEERING, KENT_STATE_ORANGE);
-  wait(DELAY);
+  delay(DELAY);
 }
 
 /**
  * default procedure; rotates each servo with a delay of ONE_BY_ONE_DELAY between each,
  * and changes the direction in between
- * 
- * the two colors specified are kent state blue and kent state orange, as defined at
- * https://www.kent.edu/ucm/color-palettes-primary-palette
  */
 void rotateOneByOneRoutine() {
   rotateAllWithDelay(AERONAUTICS, ONE_BY_ONE_DELAY, LEFT_TO_RIGHT, KENT_STATE_BLUE);
-  wait(DELAY);
+  delay(DELAY);
   rotateAllWithDelay(ENGINEERING, ONE_BY_ONE_DELAY, RIGHT_TO_LEFT, KENT_STATE_ORANGE);
-  wait(DELAY);
+  delay(DELAY);
 }
 
 /**
  * utility method that calls rotateAll() with an array of size 1
  */
 void rotateAll(int angle, long color) {
-  long l[1] = { color };
-  rotateAll(angle, l);
+  long colorArr[1] = { color };
+  rotateAll(angle, colorArr);
 }
 
 /**
@@ -203,7 +199,7 @@ void rotateAllWithDelay(int angle, int delayTime, int dir, long* colors) {
       } else {
         outputServoAndLED(pin, angle, colors[pin]);
       }
-      wait(delayTime);
+      delay(delayTime);
     }
   } else {
     for(uint8_t pin = SERVO_COUNT; pin > 0; pin--) {
@@ -212,7 +208,7 @@ void rotateAllWithDelay(int angle, int delayTime, int dir, long* colors) {
       } else {
         outputServoAndLED(pin, angle, colors[pin]);
       }
-      wait(delayTime);
+      delay(delayTime);
     }
   }
 }
@@ -258,11 +254,3 @@ int pulseWidth(int angle) {
   return analog_value;
 }
 
-/**
- * delay() wrapper method that subtracts the given amount from the dormant timer
- * to help it keep up
- */
-void wait(long microseconds) {
-  delay(microseconds);
-  dormantTimer += microseconds;
-}
