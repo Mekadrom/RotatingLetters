@@ -1,5 +1,5 @@
 #include <Adafruit_PWMServoDriver.h>
-#include <VariableTimedAction.h>
+//#include <VariableTimedAction.h>
 
 // definitions purely for use with adafruit servo driver
 #define MIN_PULSE_WIDTH     650
@@ -36,54 +36,53 @@
 #define L                   48 // inches; total length of physical aspect of project
 #define W                   3  // inches; distance between line of servos and cameras behind servos (subject to change)
 
-class DormantTimer : public VariableTimedAction {
-  private:
-    int _timer = 0;
+//class DormantTimer : public VariableTimedAction {
+//  private:
+//    int _timer = 0;
+//
+//    unsigned long run() {
+//      _timer++;
+//      return 0;
+//    }
+//  public:
+//    static const uint8_t timerLimit = 10; // ten second dormant timer limit
+//
+//    int getTimer() {
+//      return _timer;
+//    }
+//
+//    void reset() {
+//      _timer = 0;
+//    }
+//
+//    boolean expired() {
+//      return _timer >= timerLimit;
+//    }
+//};
 
-    unsigned long run() {
-      _timer++;
-      return 0;
-    }
-  public:
-    static const uint8_t timerLimit = 10; // ten second dormant timer limit
+//DormantTimer dormantTimer;
 
-    int getTimer() {
-      return _timer;
-    }
+//class DormantInterruptListener : public VariableTimedAction {
+//  private:
+//    unsigned long run() {
+//      char chars[128];
+//      uint8_t i = 0;
+//      while(Serial.available() > 0) {
+//        chars[i++] = Serial.read();
+//      }
+//      if(chars[0] != '\0' && chars[0] != NULL) {
+//        char personOrNot;
+//        char* rest;
+//        sscanf(chars, "%1s,%s", &personOrNot, rest);
+//        // "Y aasdasfasdf", "Y", "Y\0" would all reset the timer; the python code should regularly update when a person is in frame
+//        if(personOrNot == 'Y' && (rest[0] == ' ' || rest[0] == '\0' || rest[0] == NULL)) {
+//          dormantTimer.reset(); // resets dormant timer
+//        }
+//      }
+//    }
+//};
 
-    void reset() {
-      _timer = 0;
-    }
-
-    boolean expired() {
-      return _timer >= timerLimit;
-    }
-};
-
-DormantTimer dormantTimer;
-
-class DormantInterruptListener : public VariableTimedAction {
-  private:
-    unsigned long run() {
-      char chars[128];
-      uint8_t i = 0;
-      while(Serial.available() > 0) {
-        chars[i++] = Serial.read();
-      }
-      return chars;
-      if(chars[0] != '\0' && chars[0] != NULL) {
-        char personOrNot;
-        char* rest;
-        sscanf(chars, "%1s,%s", &personOrNot, rest);
-        // "Y aasdasfasdf", "Y", "Y\0" would all reset the timer; the python code should regularly update when a person is in frame
-        if(personOrNot == 'Y' && (rest[0] == ' ' || rest[0] == '\0' || rest[0] == NULL)) {
-          dormantTimer.reset(); // resets dormant timer
-        }
-      }
-    }
-};
-
-DormantInterruptListener dormantInterruptListener;
+//DormantInterruptListener dormantInterruptListener;
 
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 
@@ -97,26 +96,28 @@ int curAngles[SERVO_COUNT]; // easy access to servos' angles
  * start everything and zero servos
  */
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
  
   pwm.begin();
   pwm.setPWMFreq(FREQUENCY);
 
   rotateAll(0, 0xffffff); // zeroing
-  dormantTimer.start(1000); // every second, updates dormant timer counter
-  dormantInterruptListener.start(100); // ten times every second, checks for dormant update on serial port
+//  dormantTimer.start(1000); // every second, updates dormant timer counter
+//  dormantInterruptListener.start(100); // ten times every second, checks for dormant update on serial port
 }
 
 /**
  * routine-routining should be done here
  */
 void loop() {
-  VariableTimedAction::updateActions(); // updates ALL variable timed actions
-  
-  if(!dormantTimer.expired()) {
+//  if(!dormantTimer.expired()) {
     doSubroutine(ROTATE_ONE_BY_ONE);
-    dormantTimer.reset();
-  }
+    // set start time so the thing knows when to switch
+//      pointStartTime = micros();
+//      point(20, 90);
+//    dormantTimer.reset(); // for now, reset timer so it goes on infinitely
+//  }
+//  VariableTimedAction::updateActions(); // updates ALL variable timed actions
 }
 
 /** 
@@ -257,7 +258,7 @@ void rotateAllWithDelay(int angle, int delayTime, int dir, long* colors) {
       delay(delayTime);
     }
   } else {
-    for(uint8_t pin = SERVO_COUNT; pin > 0; pin--) {
+    for(uint8_t pin = SERVO_COUNT; pin >= 0; pin--) {
       if(numColors == 1) {
         outputServoAndLED(pin, angle, colors[0]);
       } else {
