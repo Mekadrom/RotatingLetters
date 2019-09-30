@@ -3,16 +3,6 @@ import math
 
 face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
 
-def remap(value_to_map, new_range_min, new_range_max, old_range_min, old_range_max):
-
-    remapped_val = (value_to_map - old_range_min) * (new_range_max - new_range_min) / (old_range_max - old_range_min) + new_range_min
-    if(remapped_val>new_range_max):
-        remapped_val = new_range_max
-    elif (remapped_val < new_range_min):
-        remapped_val = new_range_min
-
-    return remapped_val
-
 def find_face(image_to_check):
     gray = cv2.cvtColor(image_to_check, cv2.COLOR_BGR2GRAY) #convert image to black and white
     faces = face_cascade.detectMultiScale(gray, 1.2, 5)     #look for faces
