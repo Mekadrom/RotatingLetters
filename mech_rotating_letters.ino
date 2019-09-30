@@ -1,5 +1,5 @@
 #include <Adafruit_PWMServoDriver.h>
-#include <VariableTimedAction.h>
+//#include <VariableTimedAction.h>
 
 // definitions purely for use with adafruit servo driver
 #define MIN_PULSE_WIDTH     650
@@ -36,60 +36,63 @@
 #define L                   48 // inches; total length of physical aspect of project
 #define W                   3  // inches; distance between line of servos and cameras behind servos (subject to change)
 
-class DormantTimer : public VariableTimedAction {
-  private:
-    int _timer = 0;
+// safety limits for servos
+#define SERVO_LOWER_LIMIT   0
+#define SERVO_UPPER_LIMIT   179
 
-    unsigned long run() {
-      _timer++;
-      return 0;
-    }
-  public:
-    static const uint8_t timerLimit = 10; // ten second dormant timer limit
-
-    int getTimer() {
-      return _timer;
-    }
-
-    void reset() {
-      _timer = 0;
-    }
-
-    boolean expired() {
-      return _timer >= timerLimit;
-    }
-};
-
-DormantTimer dormantTimer;
-
-class DormantInterruptListener : public VariableTimedAction {
-  private:
-    unsigned long run() {
-      char chars[128];
-      uint8_t i = 0;
-      while(Serial.available() > 0) {
-        chars[i++] = Serial.read();
-      }
-      return chars;
-      if(chars[0] != '\0' && chars[0] != NULL) {
-        char personOrNot;
-        char* rest;
-        sscanf(chars, "%1s,%s", &personOrNot, rest);
-        // "Y aasdasfasdf", "Y", "Y\0" would all reset the timer; the python code should regularly update when a person is in frame
-        if(personOrNot == 'Y' && (rest[0] == ' ' || rest[0] == '\0' || rest[0] == NULL)) {
-          dormantTimer.reset(); // resets dormant timer
-        }
-      }
-    }
-};
-
-DormantInterruptListener dormantInterruptListener;
+//class DormantTimer : public VariableTimedAction {
+//  private:
+//    int _timer = 0;
+//
+//    unsigned long run() {
+//      _timer++;
+//      return 0;
+//    }
+//  public:
+//    static const uint8_t timerLimit = 10; // ten second dormant timer limit
+//
+//    int getTimer() {
+//      return _timer;
+//    }
+//
+//    void reset() {
+//      _timer = 0;
+//    }
+//
+//    boolean expired() {
+//      return _timer >= timerLimit;
+//    }
+//};
+//
+//DormantTimer dormantTimer;
+//
+//class DormantInterruptListener : public VariableTimedAction {
+//  private:
+//    unsigned long run() {
+//      char chars[128];
+//      uint8_t i = 0;
+//      while(Serial.available() > 0) {
+//        chars[i++] = Serial.read();
+//      }
+//      if(chars[0] != '\0') {
+//        char personOrNot;
+//        char* rest;
+//        sscanf(chars, "%1s,%s", &personOrNot, rest);
+//        // "Y aasdasfasdf", "Y", "Y\0" would all reset the timer; the python code should regularly update when a person is in frame
+//        if(personOrNot == 'Y' && (rest[0] == ' ' || rest[0] == '\0' || rest[0] == NULL)) {
+//          dormantTimer.reset(); // resets dormant timer
+//        }
+//      }
+//    }
+//};
+//
+//DormantInterruptListener dormantInterruptListener;
 
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 
 long pointStartTime;
 
-int offsets[SERVO_COUNT] = { 22, 8, 18, 14, 15, 10, 8, 23, 21, 21, 20 }; // these are subject to change
+int offsets[SERVO_COUNT] = { 22, 8, 18, 14, 15, 10, 8, 23, 21, 22, 20 }; // these are subject to change
 
 int curAngles[SERVO_COUNT]; // easy access to servos' angles
 
@@ -102,21 +105,24 @@ void setup() {
   pwm.begin();
   pwm.setPWMFreq(FREQUENCY);
 
-  rotateAll(0, 0xffffff); // zeroing
-  dormantTimer.start(1000); // every second, updates dormant timer counter
-  dormantInterruptListener.start(100); // ten times every second, checks for dormant update on serial port
+  rotateAll(AERONAUTICS, 0xffffff); // zeroing
+//  dormantTimer.start(1000); // every second, updates dormant timer counter
+//  dormantInterruptListener.start(100); // ten times every second, checks for dormant update on serial port
 }
 
 /**
  * routine-routining should be done here
  */
 void loop() {
-  VariableTimedAction::updateActions(); // updates ALL variable timed actions
-  
-  if(!dormantTimer.expired()) {
-    doSubroutine(ROTATE_ONE_BY_ONE);
-    dormantTimer.reset();
-  }
+//  rotateAll(AERONAUTICS, 0xffffff); // zeroing
+//  VariableTimedAction::updateActions(); // updates ALL variable timed actions
+//  if(!dormantTimer.expired()) {
+//    doSubroutine(ROTATE_ONE_BY_ONE);
+//    pointStartTime = micros();
+//    int distance = Serial.parseInt();
+//    point(distance, 135); // 30 inches from center, straight out
+//    dormantTimer.reset();
+//  }
 }
 
 /** 
@@ -148,7 +154,7 @@ void point() {
   while(Serial.available() > 0) {
     chars[i++] = Serial.read();
   }
-  if(chars[0] != '\0' && chars[0] != NULL) {
+  if(chars[0] != '\0') {
     char distanceC[10];
     char angleC[10];
 
@@ -188,7 +194,7 @@ void point(double distance, double angle) {
   uint8_t pointOffsets[SERVO_COUNT];
   for(uint8_t i = 0; i < SERVO_COUNT; i++) {
     double D = distance - W;
-    pointOffsets[i] = atan2(D, (L / 2) - (X*i) - (D * tan(angle))) - PI;
+    pointOffsets[i] = atan2(D, (L / 2) - (X*i) - (D * tan(angle)));
     pointOffsets[i] *= (180.0 / PI); // convert to degrees
   }
 
@@ -248,7 +254,7 @@ void rotateAllWithDelay(int angle, int delayTime, int dir, long color) {
 void rotateAllWithDelay(int angle, int delayTime, int dir, long* colors) {
   int numColors = sizeof(colors) / sizeof(long);
   if(dir == LEFT_TO_RIGHT) {
-    for(uint8_t pin = 0; pin < SERVO_COUNT; pin++) {
+    for(int pin = 0; pin < SERVO_COUNT; pin++) {
       if(numColors == 1) {
         outputServoAndLED(pin, angle, colors[0]);
       } else {
@@ -257,7 +263,7 @@ void rotateAllWithDelay(int angle, int delayTime, int dir, long* colors) {
       delay(delayTime);
     }
   } else {
-    for(uint8_t pin = SERVO_COUNT; pin > 0; pin--) {
+    for(int pin = SERVO_COUNT; pin >= 0; pin--) {
       if(numColors == 1) {
         outputServoAndLED(pin, angle, colors[0]);
       } else {
@@ -283,6 +289,12 @@ void outputServoAndLED(int pin, int angle, long color) {
  */
 void setAngle(int pin, int angle) {
   angle += offsets[pin];
+  if(angle > SERVO_UPPER_LIMIT) {
+    angle = SERVO_UPPER_LIMIT;
+  }
+  if(angle <= SERVO_LOWER_LIMIT) {
+    angle = SERVO_LOWER_LIMIT;
+  }
   curAngles[pin] = angle;
   pwm.setPWM(pin, 0, pulseWidth(angle));
 }
@@ -310,4 +322,3 @@ int pulseWidth(int angle) {
   analog_value = int(float(pulse_wide) / 1000000 * FREQUENCY * 4096);
   return analog_value;
 }
-
