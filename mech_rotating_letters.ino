@@ -97,7 +97,7 @@ int curAngles[SERVO_COUNT]; // easy access to servos' angles
  * start everything and zero servos
  */
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
  
   pwm.begin();
   pwm.setPWMFreq(FREQUENCY);
