@@ -91,7 +91,7 @@ class App(QWidget):
             pass
 
     def save_init_file(self):
-        init_settings = [ self.COMlineEdit.text(), self.LCameraID, self.LCameraID ]
+        init_settings = [ self.COMlineEdit.text(), self.LCameraID, self.RCameraID ]
         with open('init.pkl', 'wb') as init_file:
             pickle.dump(init_settings, init_file)
 
