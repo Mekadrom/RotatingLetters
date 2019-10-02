@@ -11,8 +11,8 @@
 #define SERVO_COUNT         11
 #define DELAY               7000
 #define ONE_BY_ONE_DELAY    100
-#define AERONAUTICS         0  // need to make adjustments to setup so that this can be 45
-#define ENGINEERING         90 // || and set this to 135, to allow for a wider range of pointing 
+#define AERONAUTICS         45  // need to make adjustments to setup so that this can be 45
+#define ENGINEERING         135 // || and set this to 135, to allow for a wider range of pointing 
 
 // various state constants; values don't matter here as long as they're different
 #define ROTATE_ALL          0x00
@@ -92,7 +92,7 @@ Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 
 long pointStartTime;
 
-int offsets[SERVO_COUNT] = { 22, 8, 18, 14, 15, 10, 8, 23, 21, 22, 20 }; // these are subject to change
+int offsets[SERVO_COUNT] = { 21, 7, 17, 12, 13, 8, 6, 20, 19, 21, 19 }; // these are subject to change
 
 int curAngles[SERVO_COUNT]; // easy access to servos' angles
 
@@ -117,7 +117,7 @@ void loop() {
 //  rotateAll(AERONAUTICS, 0xffffff); // zeroing
 //  VariableTimedAction::updateActions(); // updates ALL variable timed actions
 //  if(!dormantTimer.expired()) {
-//    doSubroutine(ROTATE_ONE_BY_ONE);
+    doSubroutine(ROTATE_ONE_BY_ONE);
 //    pointStartTime = micros();
 //    int distance = Serial.parseInt();
 //    point(distance, 135); // 30 inches from center, straight out
