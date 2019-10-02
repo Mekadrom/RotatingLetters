@@ -36,6 +36,10 @@
 #define L                   48 // inches; total length of physical aspect of project
 #define W                   3  // inches; distance between line of servos and cameras behind servos (subject to change)
 
+// safety limits for servos
+#define SERVO_LOWER_LIMIT   0
+#define SERVO_UPPER_LIMIT   179
+
 //class DormantTimer : public VariableTimedAction {
 //  private:
 //    int _timer = 0;
@@ -59,9 +63,9 @@
 //      return _timer >= timerLimit;
 //    }
 //};
-
+//
 //DormantTimer dormantTimer;
-
+//
 //class DormantInterruptListener : public VariableTimedAction {
 //  private:
 //    unsigned long run() {
@@ -70,7 +74,7 @@
 //      while(Serial.available() > 0) {
 //        chars[i++] = Serial.read();
 //      }
-//      if(chars[0] != '\0' && chars[0] != NULL) {
+//      if(chars[0] != '\0') {
 //        char personOrNot;
 //        char* rest;
 //        sscanf(chars, "%1s,%s", &personOrNot, rest);
@@ -81,14 +85,14 @@
 //      }
 //    }
 //};
-
+//
 //DormantInterruptListener dormantInterruptListener;
 
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 
 long pointStartTime;
 
-int offsets[SERVO_COUNT] = { 22, 8, 18, 14, 15, 10, 8, 23, 21, 21, 20 }; // these are subject to change
+int offsets[SERVO_COUNT] = { 22, 8, 18, 14, 15, 10, 8, 23, 21, 22, 20 }; // these are subject to change
 
 int curAngles[SERVO_COUNT]; // easy access to servos' angles
 
@@ -101,7 +105,7 @@ void setup() {
   pwm.begin();
   pwm.setPWMFreq(FREQUENCY);
 
-  rotateAll(0, 0xffffff); // zeroing
+  rotateAll(AERONAUTICS, 0xffffff); // zeroing
 //  dormantTimer.start(1000); // every second, updates dormant timer counter
 //  dormantInterruptListener.start(100); // ten times every second, checks for dormant update on serial port
 }
@@ -110,14 +114,15 @@ void setup() {
  * routine-routining should be done here
  */
 void loop() {
-//  if(!dormantTimer.expired()) {
-    doSubroutine(ROTATE_ONE_BY_ONE);
-    // set start time so the thing knows when to switch
-//      pointStartTime = micros();
-//      point(20, 90);
-//    dormantTimer.reset(); // for now, reset timer so it goes on infinitely
-//  }
+//  rotateAll(AERONAUTICS, 0xffffff); // zeroing
 //  VariableTimedAction::updateActions(); // updates ALL variable timed actions
+//  if(!dormantTimer.expired()) {
+//    doSubroutine(ROTATE_ONE_BY_ONE);
+//    pointStartTime = micros();
+//    int distance = Serial.parseInt();
+//    point(distance, 135); // 30 inches from center, straight out
+//    dormantTimer.reset();
+//  }
 }
 
 /** 
@@ -149,7 +154,7 @@ void point() {
   while(Serial.available() > 0) {
     chars[i++] = Serial.read();
   }
-  if(chars[0] != '\0' && chars[0] != NULL) {
+  if(chars[0] != '\0') {
     char distanceC[10];
     char angleC[10];
 
@@ -189,7 +194,7 @@ void point(double distance, double angle) {
   uint8_t pointOffsets[SERVO_COUNT];
   for(uint8_t i = 0; i < SERVO_COUNT; i++) {
     double D = distance - W;
-    pointOffsets[i] = atan2(D, (L / 2) - (X*i) - (D * tan(angle))) - PI;
+    pointOffsets[i] = atan2(D, (L / 2) - (X*i) - (D * tan(angle)));
     pointOffsets[i] *= (180.0 / PI); // convert to degrees
   }
 
@@ -249,7 +254,7 @@ void rotateAllWithDelay(int angle, int delayTime, int dir, long color) {
 void rotateAllWithDelay(int angle, int delayTime, int dir, long* colors) {
   int numColors = sizeof(colors) / sizeof(long);
   if(dir == LEFT_TO_RIGHT) {
-    for(uint8_t pin = 0; pin < SERVO_COUNT; pin++) {
+    for(int pin = 0; pin < SERVO_COUNT; pin++) {
       if(numColors == 1) {
         outputServoAndLED(pin, angle, colors[0]);
       } else {
@@ -258,7 +263,7 @@ void rotateAllWithDelay(int angle, int delayTime, int dir, long* colors) {
       delay(delayTime);
     }
   } else {
-    for(uint8_t pin = SERVO_COUNT; pin >= 0; pin--) {
+    for(int pin = SERVO_COUNT; pin >= 0; pin--) {
       if(numColors == 1) {
         outputServoAndLED(pin, angle, colors[0]);
       } else {
@@ -284,6 +289,12 @@ void outputServoAndLED(int pin, int angle, long color) {
  */
 void setAngle(int pin, int angle) {
   angle += offsets[pin];
+  if(angle > SERVO_UPPER_LIMIT) {
+    angle = SERVO_UPPER_LIMIT;
+  }
+  if(angle <= SERVO_LOWER_LIMIT) {
+    angle = SERVO_LOWER_LIMIT;
+  }
   curAngles[pin] = angle;
   pwm.setPWM(pin, 0, pulseWidth(angle));
 }
@@ -311,4 +322,3 @@ int pulseWidth(int angle) {
   analog_value = int(float(pulse_wide) / 1000000 * FREQUENCY * 4096);
   return analog_value;
 }
-
