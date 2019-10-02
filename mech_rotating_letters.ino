@@ -32,7 +32,7 @@
 #define KENT_STATE_ORANGE   0xeaab00 // orange
 
 // project-level constants for calculating pointing routine
-#define X                   2  // inches; distance between letters/servos
+#define X                   4  // inches; distance between letters/servos
 #define L                   48 // inches; total length of physical aspect of project
 #define W                   3  // inches; distance between line of servos and cameras behind servos (subject to change)
 
