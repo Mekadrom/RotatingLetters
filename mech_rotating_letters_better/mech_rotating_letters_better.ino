@@ -1,3 +1,9 @@
+#include <FastGPIO.h>
+#define APA102_USE_FAST_GPIO
+
+#include <APA102.h>
+#include <EEPROM.h>
+
 #include <Adafruit_PWMServoDriver.h>
 
 // definitions purely for use with adafruit servo driver
@@ -17,7 +23,6 @@
 // various state constants; values don't matter here as long as they're different
 #define ROTATE_ALL          0x00
 #define ROTATE_ONE_BY_ONE   0x01
-#define POINT               0x02
 
 #define LEFT_TO_RIGHT       0x10
 #define RIGHT_TO_LEFT       0x11
@@ -29,10 +34,23 @@
 #define KENT_STATE_BLUE     0x002664 // blue
 #define KENT_STATE_ORANGE   0xeaab00 // orange
 
+// led defines
+
+// set the brightness to use (the maximum is 31).
+#define BRIGHTNESS          2
+#define LED_PER_SERVO       6
+#define LED_COUNT LED_PER_SERVO * SERVO_COUNT
+
+#define LED_DATA_PIN 11 // green wire is data
+#define LED_CLOCK_PIN 12 // yellow wire is clock
+
+#define LED_OFFSET          0
+
 // safety limits for servos
 #define SERVO_LOWER_LIMIT   0
 #define SERVO_UPPER_LIMIT   179
 
+APA102<LED_DATA_PIN, LED_CLOCK_PIN> ledStrip;
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 
 int offsets[SERVO_COUNT] = { 21, 7, 17, 12, 13, 8, 6, 20, 19, 21, 19 }; // these are subject to change
@@ -53,9 +71,7 @@ void setup() {
 }
 
 void loop() {
-//  sub(ROTATE_ONE_BY_ONE);
-  pointStartTime = micros();
-  point(30, 135); // 30 inches from center, straight out
+  sub(ROTATE_ONE_BY_ONE);
 }
 
 /** 
@@ -68,11 +84,6 @@ void sub(int subroutine) {
       break;
     } case ROTATE_ONE_BY_ONE: {
       rotateOneByOneRoutine();
-      break;
-    } case POINT: {
-      // set start time so the thing knows when to switch
-      pointStartTime = micros();
-      point();
       break;
     } default: {
       rotateAllRoutine();
@@ -127,6 +138,18 @@ void rotateAllDelayDir(int angle, long d, int dirCode) {
   }
 }
 
+void setServoAndLED(int pin, int angle, long color) {
+  unsigned int red = (color & 0xff0000) >> 16;
+  unsigned int green = (color & 0x00ff00) >> 8;
+  unsigned int blue = (color & 0x0000ff) >> 0;
+
+  rgb_color rgbColor(red, green, blue);
+
+  rotate(pin, angle);
+  setLED(pin, rgbColor);
+}
+
+
 void rotate(int pin, int angle) {
   angle += offsets[pin];
   if(angle >= SERVO_UPPER_LIMIT) {
@@ -137,6 +160,17 @@ void rotate(int pin, int angle) {
   }
   curAngles[pin] = angle;
   pwm.setPWM(pin, 0, pulseWidth(angle));
+}
+
+/**
+ * Given a pin corresponding to a servo, lights all of the 
+ */
+void setLED(int pin, rgb_color color) {
+  rgb_color* colors;
+  for(int i = LED_OFFSET; i < (6 * pin) + LED_OFFSET; i++) {
+    colors[i] = color;
+  }
+  ledStrip.write(colors, LED_COUNT, BRIGHTNESS);
 }
 
 int pulseWidth(int angle) {
