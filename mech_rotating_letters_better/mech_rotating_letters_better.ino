@@ -34,15 +34,25 @@
 #define KENT_STATE_BLUE     0x002664 // blue
 #define KENT_STATE_ORANGE   0xeaab00 // orange
 
+#define DEFAULT_COLOR       0xffffff // white
+
 // led defines
 
 // set the brightness to use (the maximum is 31).
-#define BRIGHTNESS          2
+const uint8_t globalBrightness = 2;
 #define LED_PER_SERVO       6
-#define LED_COUNT LED_PER_SERVO * SERVO_COUNT
+#define LED_COUNT         120
 
-#define LED_DATA_PIN 11 // green wire is data
-#define LED_CLOCK_PIN 12 // yellow wire is clock
+byte red;
+byte green;
+byte blue;
+byte red1;
+byte green1;
+byte blue1;//kent state blue r0,g38,b100  kent state gold r239,g171,b0
+rgb_color colors[LED_COUNT];
+
+#define LED_DATA_PIN 5 // green wire is data
+#define LED_CLOCK_PIN 6 // yellow wire is clock
 
 #define LED_OFFSET          0
 
@@ -50,7 +60,9 @@
 #define SERVO_LOWER_LIMIT   0
 #define SERVO_UPPER_LIMIT   179
 
-APA102<LED_DATA_PIN, LED_CLOCK_PIN> ledStrip;
+const uint8_t dataPin = 5;  //green wire is data
+const uint8_t clockPin = 6; //yellow wire is clock
+APA102<dataPin, clockPin> ledStrip;
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 
 int offsets[SERVO_COUNT] = { 21, 7, 17, 12, 13, 8, 6, 20, 19, 21, 19 }; // these are subject to change
@@ -61,17 +73,27 @@ long pointStartTime;
 int pointStaticOffset = AERONAUTICS; 
 
 void setup() {
-  Serial.begin(9600);
+//  pwm.begin();
 
-  pwm.begin();
+//  pwm.setPWMFreq(FREQUENCY);
 
-  pwm.setPWMFreq(FREQUENCY);
-
-  rotateAll(AERONAUTICS);
+//  rotateAll(AERONAUTICS);
+  for(int i = SERVO_COUNT - 1; i >= 0; i--) {
+    setLED(i, KENT_STATE_BLUE);
+    delay(100);
+  }
 }
 
 void loop() {
-  sub(ROTATE_ONE_BY_ONE);
+  for(int i = 0; i < SERVO_COUNT; i++) {
+    setLED(i, KENT_STATE_ORANGE);
+    delay(100);
+  }
+  for(int i = SERVO_COUNT - 1; i >= 0; i--) {
+    setLED(i, KENT_STATE_BLUE);
+    delay(100);
+  }
+//  sub(ROTATE_ONE_BY_ONE);
 }
 
 /** 
@@ -83,7 +105,7 @@ void sub(int subroutine) {
       rotateAllRoutine();
       break;
     } case ROTATE_ONE_BY_ONE: {
-      rotateOneByOneRoutine();
+      rotateOneByOneColorsRoutine();
       break;
     } default: {
       rotateAllRoutine();
@@ -113,6 +135,13 @@ void rotateOneByOneRoutine() {
   delay(DELAY);
 }
 
+void rotateOneByOneColorsRoutine() {
+  rotateAllDelayDirWithColor(AERONAUTICS, ONE_BY_ONE_DELAY, LEFT_TO_RIGHT, KENT_STATE_BLUE);
+  delay(DELAY);
+  rotateAllDelayDirWithColor(ENGINEERING, ONE_BY_ONE_DELAY, RIGHT_TO_LEFT, KENT_STATE_ORANGE);
+  delay(DELAY);
+}
+
 void rotateAll(int angle) {
   rotateAllDelay(angle, 0);
 }
@@ -138,15 +167,23 @@ void rotateAllDelayDir(int angle, long d, int dirCode) {
   }
 }
 
+void rotateAllDelayDirWithColor(int angle, long d, int dirCode, long color) {
+  if(dirCode == LEFT_TO_RIGHT) {
+    for(int pin = 0; pin < SERVO_COUNT; pin++) {
+      setServoAndLED(pin, angle, color);
+      delay(d);
+    }
+  } else {
+    for(int pin = SERVO_COUNT; pin >= 0; pin--) {
+      setServoAndLED(pin, angle, color);
+      delay(d);
+    }
+  }
+}
+
 void setServoAndLED(int pin, int angle, long color) {
-  unsigned int red = (color & 0xff0000) >> 16;
-  unsigned int green = (color & 0x00ff00) >> 8;
-  unsigned int blue = (color & 0x0000ff) >> 0;
-
-  rgb_color rgbColor(red, green, blue);
-
   rotate(pin, angle);
-  setLED(pin, rgbColor);
+  setLED(pin, color);
 }
 
 
@@ -165,12 +202,15 @@ void rotate(int pin, int angle) {
 /**
  * Given a pin corresponding to a servo, lights all of the 
  */
-void setLED(int pin, rgb_color color) {
-  rgb_color* colors;
-  for(int i = LED_OFFSET; i < (6 * pin) + LED_OFFSET; i++) {
-    colors[i] = color;
+void setLED(int pin, long color) {
+  byte red = (color & 0xff0000) >> 16;
+  byte green = (color & 0x00ff00) >> 8;
+  byte blue = (color & 0x0000ff) >> 0;
+
+  for(int i = (6 * pin) + LED_OFFSET; i < (6 * pin) + 6 + LED_OFFSET; i++) {
+    colors[i] = rgb_color(red * 1, green * 1, blue * 1);
   }
-  ledStrip.write(colors, LED_COUNT, BRIGHTNESS);
+  ledStrip.write(colors, LED_COUNT, globalBrightness);
 }
 
 int pulseWidth(int angle) {
