@@ -1,5 +1,5 @@
+#include "FastLED.h"
 #include <Adafruit_PWMServoDriver.h>
-//#include <VariableTimedAction.h>
 
 // definitions purely for use with adafruit servo driver
 #define MIN_PULSE_WIDTH     650
@@ -12,284 +12,154 @@
 #define DELAY               7000
 #define ONE_BY_ONE_DELAY    100
 #define AERONAUTICS         45  // need to make adjustments to setup so that this can be 45
-#define ENGINEERING         135 // || and set this to 135, to allow for a wider range of pointing 
+#define ENGINEERING         135 // || and set this to 135, to allow for a wider range of pointing
+#define ZERO        AERONAUTICS
 
 // various state constants; values don't matter here as long as they're different
 #define ROTATE_ALL          0x00
 #define ROTATE_ONE_BY_ONE   0x01
-#define POINT               0x02
 
 #define LEFT_TO_RIGHT       0x10
 #define RIGHT_TO_LEFT       0x11
-
-#define DEFAULT_COLOR       0xffffff // white
 
 /** 
  * the two colors below are kent state blue and kent state orange, as defined at
  * https://www.kent.edu/ucm/color-palettes-primary-palette
  */
 #define KENT_STATE_BLUE     0x002664 // blue
-#define KENT_STATE_ORANGE   0xeaab00 // orange
+#define KENT_STATE_GOLD   0xeaab00 // yellow
 
-// project-level constants for calculating pointing routine
-#define X                   4  // inches; distance between letters/servos
-#define L                   48 // inches; total length of physical aspect of project
-#define W                   3  // inches; distance between line of servos and cameras behind servos (subject to change)
+#define DEFAULT_COLOR       0xffffff // white
+
+// led defines
+
+// set the brightness to use (the maximum is 255 now).
+#define BRIGHTNESS          2
+
+#define LED_PER_SERVO       6
+#define LED_COUNT         120
+
+CRGB leds[LED_COUNT];
+
+#define LED_DATA_PIN 11 // green wire is data
+#define LED_CLOCK_PIN 12 // yellow wire is clock
+
+#define LED_OFFSET          0
 
 // safety limits for servos
 #define SERVO_LOWER_LIMIT   0
 #define SERVO_UPPER_LIMIT   179
 
-//class DormantTimer : public VariableTimedAction {
-//  private:
-//    int _timer = 0;
-//
-//    unsigned long run() {
-//      _timer++;
-//      return 0;
-//    }
-//  public:
-//    static const uint8_t timerLimit = 10; // ten second dormant timer limit
-//
-//    int getTimer() {
-//      return _timer;
-//    }
-//
-//    void reset() {
-//      _timer = 0;
-//    }
-//
-//    boolean expired() {
-//      return _timer >= timerLimit;
-//    }
-//};
-//
-//DormantTimer dormantTimer;
-//
-//class DormantInterruptListener : public VariableTimedAction {
-//  private:
-//    unsigned long run() {
-//      char chars[128];
-//      uint8_t i = 0;
-//      while(Serial.available() > 0) {
-//        chars[i++] = Serial.read();
-//      }
-//      if(chars[0] != '\0') {
-//        char personOrNot;
-//        char* rest;
-//        sscanf(chars, "%1s,%s", &personOrNot, rest);
-//        // "Y aasdasfasdf", "Y", "Y\0" would all reset the timer; the python code should regularly update when a person is in frame
-//        if(personOrNot == 'Y' && (rest[0] == ' ' || rest[0] == '\0' || rest[0] == NULL)) {
-//          dormantTimer.reset(); // resets dormant timer
-//        }
-//      }
-//    }
-//};
-//
-//DormantInterruptListener dormantInterruptListener;
-
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
+
+int offsets[SERVO_COUNT] = { 21, 7, 17, 12, 13, 8, 6, 20, 19, 21, 19 }; // these are subject to change
+int curAngles[SERVO_COUNT]; // easy access to servos' angles
 
 long pointStartTime;
 
-int offsets[SERVO_COUNT] = { 21, 7, 17, 12, 13, 8, 6, 20, 19, 21, 19 }; // these are subject to change
+int pointStaticOffset = AERONAUTICS; 
 
-int curAngles[SERVO_COUNT]; // easy access to servos' angles
-
-/**
- * start everything and zero servos
- */
 void setup() {
-  Serial.begin(9600);
- 
+  FastLED.addLeds<DOTSTAR, LED_DATA_PIN, LED_CLOCK_PIN, BGR>(leds, LED_COUNT);
+  FastLED.setBrightness(BRIGHTNESS);
+  
   pwm.begin();
+
   pwm.setPWMFreq(FREQUENCY);
 
-  rotateAll(AERONAUTICS, 0xffffff); // zeroing
-//  dormantTimer.start(1000); // every second, updates dormant timer counter
-//  dormantInterruptListener.start(100); // ten times every second, checks for dormant update on serial port
+  rotateAll(AERONAUTICS);
+
+  setAllLEDS(DEFAULT_COLOR);
+  
+  delay(2000);
 }
 
-/**
- * routine-routining should be done here
- */
 void loop() {
-//  rotateAll(AERONAUTICS, 0xffffff); // zeroing
-//  VariableTimedAction::updateActions(); // updates ALL variable timed actions
-//  if(!dormantTimer.expired()) {
-    doSubroutine(ROTATE_ONE_BY_ONE);
-//    pointStartTime = micros();
-//    int distance = Serial.parseInt();
-//    point(distance, 135); // 30 inches from center, straight out
-//    dormantTimer.reset();
+//  for(int i = 0; i < SERVO_COUNT; i++) {
+//    setLED(i, KENT_STATE_ORANGE);
+//    delay(100);
 //  }
+//
+//  delay(1000);
+//  
+//  for(int i = SERVO_COUNT - 1; i >= 0; i--) {
+//    setLED(i, KENT_STATE_BLUE);
+//    delay(100);
+//  }
+
+  sub(ROTATE_ONE_BY_ONE);
 }
 
 /** 
- * delegate routining 
+ * delegate routining; for adding more routines
  */
-void doSubroutine(int subroutine) {
+void sub(int subroutine) {
   switch(subroutine) {
-    case ROTATE_ALL: {
-      rotateAllRoutine();
-      break;
-    } case ROTATE_ONE_BY_ONE: {
-      rotateOneByOneRoutine();
-      break;
-    } case POINT: {
-      // set start time so the thing knows when to switch
-      pointStartTime = micros();
-      point();
+    case ROTATE_ONE_BY_ONE: {
+      rotateOneByOneColorsRoutine();
       break;
     } default: {
-      rotateAllRoutine();
+      rotateOneByOneColorsRoutine();
       break;
     }
   }
 }
 
-void point() {
-  char chars[128];
-  uint8_t i = 0;
-  while(Serial.available() > 0) {
-    chars[i++] = Serial.read();
-  }
-  if(chars[0] != '\0') {
-    char distanceC[10];
-    char angleC[10];
-
-    // read in string instead of floats because arduino has a hard time reading in float for some reason
-    sscanf(chars, "%s,%s", distanceC, angleC);
-
-    // convert them to floats anyways
-    point(atof(distanceC), atof(angleC));
-  }
-}
-
-int staticOffset = AERONAUTICS; 
-
-/**
- * routine for having the servos aim at a point in space
- * distance in inches, angle in degrees, both with respect to the center
- * servo (or the closest to the center between servos, it doesn't have to fall on
- * a servo)
- */
-void point(double distance, double angle) {
-  // todo: math for pointing each individual servo at a point in space in front of them
-  Serial.print("pointing at something: ");
-  Serial.print(distance);
-  Serial.print(" far and at an angle of: ");
-  Serial.print(angle);
-  Serial.print("\n");
-
-  // toggle word showing every ten seconds for cool whiplash effect (hopefully)
-  if((micros() - pointStartTime) % 10000 <= 200) {
-    if(staticOffset == AERONAUTICS) {
-      staticOffset = ENGINEERING;
-    } else {
-      staticOffset = AERONAUTICS;
-    }
-  }
-  
-  uint8_t pointOffsets[SERVO_COUNT];
-  for(uint8_t i = 0; i < SERVO_COUNT; i++) {
-    double D = distance - W;
-    pointOffsets[i] = atan2(D, (L / 2) - (X*i) - (D * tan(angle)));
-    pointOffsets[i] *= (180.0 / PI); // convert to degrees
-  }
-
-  for(uint8_t i = 0; i < SERVO_COUNT; i++) {
-    setAngle(i, pointOffsets[i] + offsets[i] + staticOffset);
-  }
-}
-
-/**
- * not really used anymore, as the delayed routine was deemed a better (cooler) demonstration
- */
-void rotateAllRoutine() {
-  rotateAll(AERONAUTICS, KENT_STATE_BLUE);
+void rotateOneByOneColorsRoutine() {
+  rotateAllDelayDirWithColor(AERONAUTICS, ONE_BY_ONE_DELAY, LEFT_TO_RIGHT, KENT_STATE_BLUE);
   delay(DELAY);
-  rotateAll(ENGINEERING, KENT_STATE_ORANGE);
+  rotateAllDelayDirWithColor(ENGINEERING, ONE_BY_ONE_DELAY, RIGHT_TO_LEFT, KENT_STATE_GOLD);
   delay(DELAY);
 }
 
-/**
- * default procedure; rotates each servo with a delay of ONE_BY_ONE_DELAY between each,
- * and changes the direction in between
- */
-void rotateOneByOneRoutine() {
-  rotateAllWithDelay(AERONAUTICS, ONE_BY_ONE_DELAY, LEFT_TO_RIGHT, KENT_STATE_BLUE);
-  delay(DELAY);
-  rotateAllWithDelay(ENGINEERING, ONE_BY_ONE_DELAY, RIGHT_TO_LEFT, KENT_STATE_ORANGE);
-  delay(DELAY);
+void rotateAll(int angle) {
+  rotateAllDelay(angle, 0);
 }
 
-/**
- * utility method that calls rotateAll() with an array of size 1
- */
-void rotateAll(int angle, long color) {
-  rotateAll(angle, &color);
+void rotateAllDelay(int angle, long d) {
+  for(int i = 0; i < SERVO_COUNT; i++) {
+    rotate(i, angle);
+    delay(d);
+  }
 }
 
-/**
- * default usage of rotateAllWithDelay, allows one color for each servo
- * and passes a delay of zero to get them all to move at roughly the same time
- */
-void rotateAll(int angle, long* colors) {
-  rotateAllWithDelay(angle, 0, LEFT_TO_RIGHT, colors);
-}
-
-/**
- * utility method that allows the direct usage of a long instead of a long*
- */
-void rotateAllWithDelay(int angle, int delayTime, int dir, long color) {
-  rotateAllWithDelay(angle, delayTime, dir, &color);
-}
-
-/**
- * rotates all servos with a delay between each angle command,
- * can take a pointer to either a single long for the color of each servo
- * or an array of colors to set the color for each individual servo
- */
-void rotateAllWithDelay(int angle, int delayTime, int dir, long* colors) {
-  int numColors = sizeof(colors) / sizeof(long);
-  if(dir == LEFT_TO_RIGHT) {
+void rotateAllDelayDir(int angle, long d, int dirCode) {
+  if(dirCode == LEFT_TO_RIGHT) {
     for(int pin = 0; pin < SERVO_COUNT; pin++) {
-      if(numColors == 1) {
-        outputServoAndLED(pin, angle, colors[0]);
-      } else {
-        outputServoAndLED(pin, angle, colors[pin]);
-      }
-      delay(delayTime);
+      rotate(pin, angle);
+      delay(d);
     }
   } else {
     for(int pin = SERVO_COUNT; pin >= 0; pin--) {
-      if(numColors == 1) {
-        outputServoAndLED(pin, angle, colors[0]);
-      } else {
-        outputServoAndLED(pin, angle, colors[pin]);
-      }
-      delay(delayTime);
+      rotate(pin, angle);
+      delay(d);
     }
   }
 }
 
-/**
- * Does output for the servo involved and its
- * corresponding led
- */
-void outputServoAndLED(int pin, int angle, long color) {
-  setAngle(pin, angle);
-  setLed(pin, color);
+void rotateAllDelayDirWithColor(int angle, long d, int dirCode, long color) {
+  if(dirCode == LEFT_TO_RIGHT) {
+    for(int pin = 0; pin < SERVO_COUNT; pin++) {
+      setServoAndLED(pin, angle, color);
+      delay(d);
+    }
+  } else {
+    for(int pin = SERVO_COUNT; pin >= 0; pin--) {
+      setServoAndLED(pin, angle, color);
+      delay(d);
+    }
+  }
 }
 
-/**
- * sets angle for a specific servo (currently 0-11)
- * offsets are used for each servo as stored in offsets int array
- */
-void setAngle(int pin, int angle) {
+void setServoAndLED(int pin, int angle, long color) {
+  rotate(pin, angle);
+  setLED(pin, color);
+}
+
+
+void rotate(int pin, int angle) {
   angle += offsets[pin];
-  if(angle > SERVO_UPPER_LIMIT) {
+  if(angle >= SERVO_UPPER_LIMIT) {
     angle = SERVO_UPPER_LIMIT;
   }
   if(angle <= SERVO_LOWER_LIMIT) {
@@ -299,21 +169,28 @@ void setAngle(int pin, int angle) {
   pwm.setPWM(pin, 0, pulseWidth(angle));
 }
 
-void setLed(int ledNum, long color) {
-  // color should be in hexadecimal (0xffffff) format
-  // bitwise operators are used for separating out red, green, and blue color contents
+void setAllLEDS(long color) {
+  for(int i = 0; i < SERVO_COUNT; i++) {
+    setLED(i, color);
+  }
+}
+
+/**
+ * Given a pin corresponding to a servo, lights all of the 
+ */
+void setLED(int pin, long color) {
+  for(int i = (6 * pin) + LED_OFFSET; i < (6 * pin) + 6 + LED_OFFSET; i++) {
+    setLEDAbsolute(i, color);
+  }
+}
+
+void setLEDAbsolute(int led, long color) {
+  byte red =   (color & 0xff0000) >> 16;
+  byte green = (color & 0x00ff00) >>  8;
+  byte blue =  (color & 0x0000ff) >>  0;
   
-  // red content is stored in the first byte (0xff), so mask for this (0xff0000) and shift it 16 bits to the right to be in the lowest bit position to get the true value
-  unsigned int red = (color & 0xff0000) >> 16;
-
-  // same thing for green, except the data is stored in the second byte and we only have to shift it 8 bits to the right
-  unsigned int green = (color & 0x00ff00) >> 8;
-
-  // again for blue, and we don't have to shift anything because the data is already in the right position
-  unsigned int blue = (color & 0x0000ff) >> 0;
-
-  // and now we have the red, green, and blue content of a hexadecimal color on a scale of 0-255, for use with LED strip
-  // todo: integrate led strip code here
+  leds[led] = CRGB(red * 1, green * 1, blue * 1);
+  FastLED.show();
 }
 
 int pulseWidth(int angle) {
