@@ -27,11 +27,9 @@
  * https://www.kent.edu/ucm/color-palettes-primary-palette
  */
 #define KENT_STATE_BLUE     0x002664 // blue
-#define KENT_STATE_GOLD   0xeaab00 // yellow
+#define KENT_STATE_GOLD     0xeaab00 // gold
 
 #define DEFAULT_COLOR       0xffffff // white
-
-// led defines
 
 // set the brightness to use (the maximum is 255 now).
 #define BRIGHTNESS          2
@@ -41,14 +39,14 @@
 
 CRGB leds[LED_COUNT];
 
-#define LED_DATA_PIN 11 // green wire is data
+#define LED_DATA_PIN  11 // green wire is data
 #define LED_CLOCK_PIN 12 // yellow wire is clock
 
 #define LED_OFFSET          0
 
 // safety limits for servos
 #define SERVO_LOWER_LIMIT   0
-#define SERVO_UPPER_LIMIT   179
+#define SERVO_UPPER_LIMIT 179
 
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 
@@ -144,7 +142,7 @@ void rotateAllDelayDirWithColor(int angle, long d, int dirCode, long color) {
       delay(d);
     }
   } else {
-    for(int pin = SERVO_COUNT; pin >= 0; pin--) {
+    for(int pin = SERVO_COUNT - 1; pin >= 0; pin--) {
       setServoAndLED(pin, angle, color);
       delay(d);
     }
