@@ -32,7 +32,7 @@
 #define DEFAULT_COLOR       0xffffff // white
 
 // set the brightness to use (the maximum is 255 now).
-#define BRIGHTNESS          127
+#define BRIGHTNESS          255
 
 #define LED_PER_SERVO       6
 #define LED_COUNT         120
@@ -42,19 +42,21 @@ CRGB leds[LED_COUNT];
 #define LED_DATA_PIN  4 // green wire is data
 #define LED_CLOCK_PIN 5 // yellow wire is clock
 
-#define LED_OFFSET          0
+#define LED_OFFSET          4
 
 // safety limits for servos
 #define SERVO_LOWER_LIMIT   0
 #define SERVO_UPPER_LIMIT 179
 
-//Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
+// Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 
 Servo servos[SERVO_COUNT];
 
-int servoPins[SERVO_COUNT] = { 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21 };
+Servo testServo;
 
-int offsets[SERVO_COUNT] = { 21, 7, 17, 12, 13, 8, 6, 20, 19, 21, 19 }; // these are subject to change
+int servoPins[SERVO_COUNT] = { 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32 };
+
+int offsets[SERVO_COUNT] = { 30, 28, 31, 30, 20, 21, 27, 30, 25, 34, 20 }; // these are subject to change
 int curAngles[SERVO_COUNT]; // easy access to servos' angles
 
 long pointStartTime;
@@ -69,6 +71,8 @@ void setup() {
     servos[i].attach(servoPins[i]);
   }
 
+//  testServo.attach(22);
+
   rotateAll(AERONAUTICS);
 
   setAllLEDS(DEFAULT_COLOR);
@@ -77,17 +81,19 @@ void setup() {
 }
 
 void loop() {
-  for(int i = 0; i < SERVO_COUNT; i++) {
-    setLED(i, KENT_STATE_GOLD);
-    delay(100);
-  }
-
-  delay(1000);
-  
-  for(int i = SERVO_COUNT - 1; i >= 0; i--) {
-    setLED(i, KENT_STATE_BLUE);
-    delay(100);
-  }
+//  for(int i = 0; i < SERVO_COUNT; i++) {
+//    testServo.write(45);
+//    setLED(i, KENT_STATE_GOLD);
+//    delay(100);
+//  }
+//
+//  delay(1000);
+//  
+//  for(int i = SERVO_COUNT - 1; i >= 0; i--) {
+//    testServo.write(135);
+//    setLED(i, KENT_STATE_BLUE);
+//    delay(100);
+//  }
 
   sub(ROTATE_ONE_BY_ONE);
 }
