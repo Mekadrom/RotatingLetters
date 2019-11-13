@@ -1,5 +1,5 @@
 #include "FastLED.h"
-#include <Adafruit_PWMServoDriver.h>
+#include <Servo.h>
 
 // definitions purely for use with adafruit servo driver
 #define MIN_PULSE_WIDTH     650
@@ -32,15 +32,15 @@
 #define DEFAULT_COLOR       0xffffff // white
 
 // set the brightness to use (the maximum is 255 now).
-#define BRIGHTNESS          2
+#define BRIGHTNESS          127
 
 #define LED_PER_SERVO       6
 #define LED_COUNT         120
 
 CRGB leds[LED_COUNT];
 
-#define LED_DATA_PIN  11 // green wire is data
-#define LED_CLOCK_PIN 12 // yellow wire is clock
+#define LED_DATA_PIN  4 // green wire is data
+#define LED_CLOCK_PIN 5 // yellow wire is clock
 
 #define LED_OFFSET          0
 
@@ -48,7 +48,11 @@ CRGB leds[LED_COUNT];
 #define SERVO_LOWER_LIMIT   0
 #define SERVO_UPPER_LIMIT 179
 
-Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
+//Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
+
+Servo servos[SERVO_COUNT];
+
+int servoPins[SERVO_COUNT] = { 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21 };
 
 int offsets[SERVO_COUNT] = { 21, 7, 17, 12, 13, 8, 6, 20, 19, 21, 19 }; // these are subject to change
 int curAngles[SERVO_COUNT]; // easy access to servos' angles
@@ -61,9 +65,9 @@ void setup() {
   FastLED.addLeds<DOTSTAR, LED_DATA_PIN, LED_CLOCK_PIN, BGR>(leds, LED_COUNT);
   FastLED.setBrightness(BRIGHTNESS);
   
-  pwm.begin();
-
-  pwm.setPWMFreq(FREQUENCY);
+  for(int i = 0; i < SERVO_COUNT; i++) {
+    servos[i].attach(servoPins[i]);
+  }
 
   rotateAll(AERONAUTICS);
 
@@ -73,17 +77,17 @@ void setup() {
 }
 
 void loop() {
-//  for(int i = 0; i < SERVO_COUNT; i++) {
-//    setLED(i, KENT_STATE_ORANGE);
-//    delay(100);
-//  }
-//
-//  delay(1000);
-//  
-//  for(int i = SERVO_COUNT - 1; i >= 0; i--) {
-//    setLED(i, KENT_STATE_BLUE);
-//    delay(100);
-//  }
+  for(int i = 0; i < SERVO_COUNT; i++) {
+    setLED(i, KENT_STATE_GOLD);
+    delay(100);
+  }
+
+  delay(1000);
+  
+  for(int i = SERVO_COUNT - 1; i >= 0; i--) {
+    setLED(i, KENT_STATE_BLUE);
+    delay(100);
+  }
 
   sub(ROTATE_ONE_BY_ONE);
 }
@@ -164,7 +168,7 @@ void rotate(int pin, int angle) {
     angle = SERVO_LOWER_LIMIT;
   }
   curAngles[pin] = angle;
-  pwm.setPWM(pin, 0, pulseWidth(angle));
+  servos[pin].write(angle);
 }
 
 void setAllLEDS(long color) {
@@ -191,9 +195,3 @@ void setLEDAbsolute(int led, long color) {
   FastLED.show();
 }
 
-int pulseWidth(int angle) {
-  int pulse_wide, analog_value;
-  pulse_wide   = map(angle, 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH);
-  analog_value = int(float(pulse_wide) / 1000000 * FREQUENCY * 4096);
-  return analog_value;
-}
